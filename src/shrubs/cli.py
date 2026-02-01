@@ -4,6 +4,7 @@ from pathlib import Path
 
 from shrubs.config import settings
 from shrubs.data.store import DataStore
+from shrubs.data.ib_client import IBClient, ContractType
 
 
 app = typer.Typer(help="Shrubs - Algorithmic Trading Pipeline")
@@ -52,8 +53,46 @@ def data_fetch(
     source: str = typer.Option("ib", help="Data source (ib, polygon)"),
 ):
     """Fetch market data."""
-    typer.echo(f"Fetching data: symbol={symbol}, universe={universe}, days={days}, source={source}")
-    # TODO: Implement actual fetching
+    # Build symbol list
+    symbols = []
+    if symbol:
+        symbols = [symbol]
+    elif universe:
+        universes = {
+            "test": ["AAPL", "MSFT", "GOOGL"],
+            "faang": ["META", "AAPL", "AMZN", "NFLX", "GOOGL"],
+            "mag7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"],
+        }
+        symbols = universes.get(universe.lower(), [])
+        if not symbols:
+            typer.echo(f"Unknown universe: {universe}")
+            raise typer.Exit(1)
+    else:
+        typer.echo("Specify --symbol or --universe")
+        raise typer.Exit(1)
+
+    typer.echo(f"Fetching {len(symbols)} symbols from {source} ({days} days)...")
+
+    if source == "ib":
+        store = DataStore(settings.data_dir)
+        try:
+            with IBClient(connect=True) as client:
+                for sym in symbols:
+                    typer.echo(f"  Fetching {sym}...")
+                    contract = client.create_contract(sym, ContractType.STOCK)
+                    df = client.fetch_historical(contract, duration=f"{days} D", bar_size="1 day")
+                    if len(df) > 0:
+                        store.save_ohlcv(sym, df, asset_type="equities", timeframe="daily")
+                        typer.echo(f"    Saved {len(df)} bars")
+                    else:
+                        typer.echo(f"    No data returned")
+        except Exception as e:
+            typer.echo(f"Error connecting to IB: {e}")
+            raise typer.Exit(1)
+    else:
+        typer.echo(f"Source '{source}' not yet implemented")
+        raise typer.Exit(1)
+
     typer.echo("Data fetch complete.")
 
 
