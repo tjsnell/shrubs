@@ -2,7 +2,8 @@
 from enum import Enum
 from typing import Literal
 
-from ib_insync import IB, Stock, Future, Option, Contract
+import pandas as pd
+from ib_insync import IB, Stock, Future, Option, Contract, util
 
 from shrubs.config import settings
 
@@ -65,6 +66,42 @@ class IBClient:
             return Option(symbol, expiry, strike, right, exchange, currency=currency)
 
         raise ValueError(f"Unknown contract type: {contract_type}")
+
+    def fetch_historical(
+        self,
+        contract: Contract,
+        duration: str = "30 D",
+        bar_size: str = "1 day",
+        what_to_show: str = "TRADES",
+    ) -> pd.DataFrame:
+        """Fetch historical bars for a contract.
+
+        Args:
+            contract: IB contract specification
+            duration: How far back (e.g., "30 D", "1 Y")
+            bar_size: Bar size (e.g., "1 day", "1 hour", "5 mins")
+            what_to_show: Data type (TRADES, MIDPOINT, BID, ASK)
+
+        Returns:
+            DataFrame with OHLCV columns
+        """
+        bars = self.ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr=duration,
+            barSizeSetting=bar_size,
+            whatToShow=what_to_show,
+            useRTH=True,
+        )
+
+        if not bars:
+            return pd.DataFrame()
+
+        df = util.df(bars)
+        df = df.rename(columns={"date": "timestamp"})
+        df = df.set_index("timestamp")
+        df = df[["open", "high", "low", "close", "volume"]]
+        return df
 
     def __enter__(self):
         return self

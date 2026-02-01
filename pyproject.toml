@@ -33,3 +33,6 @@ packages = ["src/shrubs"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (requires TWS/Gateway running)",
+]
