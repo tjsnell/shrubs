@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Full pipeline runner - fetch, backtest, execute."""
+import argparse
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+UNIVERSES = {
+    "test": ["AAPL", "MSFT", "GOOGL"],
+    "faang": ["META", "AAPL", "AMZN", "NFLX", "GOOGL"],
+    "mag7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"],
+}
 
 from shrubs.config import settings
 from shrubs.data.store import DataStore
@@ -130,13 +137,34 @@ def run_pipeline(
 
 
 if __name__ == "__main__":
-    # Default universe for testing
-    default_universe = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
+    parser = argparse.ArgumentParser(description="Run the trading pipeline")
+    parser.add_argument(
+        "--universe", "-u",
+        default="test",
+        help=f"Universe name ({', '.join(UNIVERSES.keys())}) or comma-separated symbols",
+    )
+    parser.add_argument(
+        "--strategy", "-s",
+        default="equal_weight",
+        help="Strategy to use (default: equal_weight)",
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Submit real orders (default: dry run)",
+    )
+    args = parser.parse_args()
+
+    # Resolve universe
+    if args.universe in UNIVERSES:
+        universe = UNIVERSES[args.universe]
+    else:
+        universe = [s.strip() for s in args.universe.split(",")]
 
     success = run_pipeline(
-        universe=default_universe,
-        strategy_name="equal_weight",
-        dry_run=True,
+        universe=universe,
+        strategy_name=args.strategy,
+        dry_run=not args.live,
     )
 
     sys.exit(0 if success else 1)
