@@ -1,8 +1,8 @@
 # Worktrees
 .worktrees/
 
-# Local data
-data/
+# Local data (root level only)
+/data/
 
 # Python
 __pycache__/
