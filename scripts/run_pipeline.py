@@ -114,9 +114,17 @@ def run_pipeline(
     portfolio = Portfolio(account_value=100_000)
     trades = portfolio.compute_trades(result.target_positions, prices)
 
+    # Build weight lookup from target_positions DataFrame
+    weights = dict(zip(result.target_positions["symbol"], result.target_positions["weight"]))
+
     logger.info(f"  Generated {len(trades)} trades:")
+    total_value = 0
     for trade in trades:
-        logger.info(f"    {trade['action']} {trade['shares']} {trade['symbol']} @ ${trade['price']:.2f}")
+        value = trade['shares'] * trade['price']
+        total_value += value
+        weight = weights.get(trade['symbol'], 0)
+        logger.info(f"    {trade['action']:4} {trade['shares']:4} {trade['symbol']:5} @ ${trade['price']:>8.2f} = ${value:>10,.2f} ({weight:.1%})")
+    logger.info(f"  Total invested: ${total_value:,.2f} / $100,000.00")
 
     if dry_run:
         logger.info("[DRY RUN] Orders logged but not submitted.")
