@@ -1,0 +1,1 @@
+"""Shrubs - Algorithmic trading pipeline."""
